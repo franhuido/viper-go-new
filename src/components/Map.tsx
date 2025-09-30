@@ -7,7 +7,7 @@ import EmergencyAlert from "./EmergencyAlert";
 import MapMarkers from "./MapMarkers";
 import CustomPopup from "./CustomPopup";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string;
 
 interface MapProps {
   onMapReady?: (map: mapboxgl.Map) => void;
@@ -94,17 +94,16 @@ const Map: React.FC<MapProps> = ({
 
   // Centro por defecto (Santiago)
   const defaultCenter: [number, number] = [-70.6506, -33.4372];
+  const MAPBOX_STYLE = "mapbox://styles/mapbox/streets-v12";
 
   // Inicialización del mapa
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // Token de ejemplo (reemplazar por tu VITE_MAPBOX_TOKEN o setear mapboxgl.accessToken aquí)
-    mapboxgl.accessToken = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_MAPBOX_TOKEN) || 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example';
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: mapStyle === 'satellite' ? 'mapbox://styles/mapbox/satellite-v9' : 'mapbox://styles/mapbox/streets-v12',
+      style: MAPBOX_STYLE,
       center: defaultCenter,
       zoom: 12,
       pitch: 0,
@@ -148,7 +147,7 @@ const Map: React.FC<MapProps> = ({
   // actualizar estilo cuando cambia prop mapStyle
   useEffect(() => {
     if (map.current) {
-      const style = mapStyle === 'satellite' ? 'mapbox://styles/mapbox/satellite-v9' : 'mapbox://styles/mapbox/streets-v12';
+      const style = 'mapbox://styles/mapbox/streets-v12';
       map.current.setStyle(style);
     }
   }, [mapStyle]);
