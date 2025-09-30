@@ -23,12 +23,24 @@
   border-radius: 8px !important;
 }
 
+.mapboxgl-popup {
+  max-width: 300px;
+  font-family: 'Inter', sans-serif;
+}
+
+.mapboxgl-popup-content {
+  border-radius: 10px !important;
+  border: 2px solid #D9D9D9 !important;
+  padding: 12px 16px !important;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
 /* Responsive sizes for smaller screens */
 @media (max-width: 1024px) {
   .mapboxgl-ctrl-top-left {
-    bottom: 78px !important;
+    bottom: 170px !important;
     top: auto !important;
-    left: 12px !important;
+    left:4px !important;
   }
   
   .mapboxgl-ctrl-zoom-in,

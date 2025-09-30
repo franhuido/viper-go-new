@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, {  useState, useRef, useEffect  } from 'react';
+import mapboxgl from 'mapbox-gl';
 
 interface EmergencyData {
   timestamp: string;
@@ -6,21 +7,109 @@ interface EmergencyData {
   location: string;
 }
 
-const EmergencyAlert: React.FC = () => {
+interface EmergencyAlertProps {
+  map?: mapboxgl.Map | null;
+  emergencyLocation?: [number, number];
+  emergencyAddress?: string;
+}
+
+const EmergencyAlert: React.FC<EmergencyAlertProps> = ({ map, emergencyLocation, emergencyAddress }) => {
   const [emergencyData] = useState<EmergencyData>({
     timestamp: '18-02-2025 ~ 21:27:54',
     title: 'TERCERA ALARMA DE INCENDIO',
     location: 'AVENIDA PUNTA ARENAS / AVENIDA TRINIDAD'
   });
 
-  const handleCenterClick = () => {
-    console.log('Centering map on emergency location');
-    // Here you would implement map centering functionality
-  };
+  // Guarda la instancia del popup para evitar duplicados
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
+
+    useEffect(() => {
+      // cleanup al desmontar
+      return () => {
+        popupRef.current?.remove();
+        popupRef.current = null;
+      };
+  }, []);
+
+const handleCenterClick = () => {
+  console.log('Centering map on emergency location');
+
+  if (!map || !emergencyLocation) {
+    console.warn('Map instance or emergencyLocation not available yet.');
+    return;
+  }
+
+  // Centrar mapa
+  map.flyTo({
+    center: emergencyLocation,
+    zoom: 15,
+    essential: true,
+  });
+
+  // Eliminar popup previo si existía
+  popupRef.current?.remove();
+  popupRef.current = null;
+
+  // HTML del popup con título + botón ✖ custom
+  const popupHtml = `
+    <div style="
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      font-size:14px;
+      padding: 12px 16px;
+      max-width: 300px;
+      border-radius: 10px;
+      border: 2px solid #D9D9D9;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-weight:700; font-size:15px; color:#111; line-height:1;">
+         ${emergencyData.title}
+        </div>
+        <button id="popup-close-btn" aria-label="Cerrar" style="
+          background: transparent;
+          border: none;
+          font-size: 18px;
+          line-height: 1;
+          cursor: pointer;
+          padding: 6px 8px;
+          margin-left: 12px;
+        ">
+          ✖
+        </button>
+      </div>
+      <div style="font-size:13px; color:#444; line-height:1.4;">
+        ${emergencyAddress || emergencyData.location}
+      </div>
+    </div>
+  `;
+
+  // Crear popup sin X nativa
+  const popup = new mapboxgl.Popup({
+    offset: 25,
+    closeButton: false,
+    closeOnClick: false,
+  })
+    .setLngLat(emergencyLocation)
+    .setHTML(popupHtml)
+    .addTo(map);
+
+  popupRef.current = popup;
+
+  // Vincular nuestra X custom al cierre del popup
+  setTimeout(() => {
+    const closeBtn = document.getElementById("popup-close-btn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        popup.remove();
+        popupRef.current = null;
+      });
+    }
+  }, 0);
+};
 
   return (
     <article className="flex w-[529px] max-lg:w-[450px] max-md:w-[90vw] items-center gap-5 max-lg:gap-3 shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] absolute h-[78px] max-lg:h-[66px] bg-white px-[25px] max-lg:px-4 py-2.5 max-lg:py-2 rounded-[10px] border-2 border-solid border-[#D9D9D9] bottom-4 max-lg:bottom-3 left-1/2 transform -translate-x-1/2 z-10">
-      <div className="flex justify-center items-center gap-2.5 flex-[1_0_0]">
+      <div  onClick={handleCenterClick}
+            className="flex justify-center items-center gap-2.5 flex-[1_0_0]">
         <div>
           <div
             dangerouslySetInnerHTML={{

@@ -3,6 +3,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
+import EmergencyAlert from "./EmergencyAlert";
+import MapMarkers from "./MapMarkers";
+import CustomPopup from "./CustomPopup";
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   onMapReady?: (map: mapboxgl.Map) => void;
@@ -18,6 +23,7 @@ interface MapProps {
   centerOnUser?: () => void;
   vehicles?: Array<{ id: string; name?: string; coordinates: [number, number] }>;
   emergencyLocation?: [number, number];
+  emergency: {lng: number; lat: number; type: string; address: string; };
 }
 
 const Map: React.FC<MapProps> = ({
@@ -31,12 +37,18 @@ const Map: React.FC<MapProps> = ({
   showSIC = false,
   showMonuments = false,
   vehicles = [],
-  emergencyLocation
+  emergencyLocation , emergency
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [isMapRotated, setIsMapRotated] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  // estado para manejar el popup personalizado
+  const [activePopup, setActivePopup] = useState<{
+    type: 'emergency' | 'hydrant' | 'vehicle' | 'other';
+    coords: [number, number];
+    data?: any;
+  } | null>(null);
 
   // -------------------------
   // SVGs embebidos (tal como me los pasaste)
@@ -52,17 +64,17 @@ const Map: React.FC<MapProps> = ({
     sic: `<svg width="46" height="46" viewBox="0 0 46 46" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M23 45C35.1503 45 45 35.1503 45 23C45 10.8497 35.1503 1 23 1C10.8497 1 1 10.8497 1 23C1 35.1503 10.8497 45 23 45Z" fill="white" stroke="#D9D9D9" stroke-width="2" stroke-miterlimit="10"/> <path d="M23 40C32.3888 40 40 32.3888 40 23C40 13.6112 32.3888 6 23 6C13.6112 6 6 13.6112 6 23C6 32.3888 13.6112 40 23 40Z" fill="#00AFEC"/> <path d="M22.9 29C23.3 29 23.5 28.9 23.8 28.6C24 28.4 24.2 28.1 24.2 27.7C24.2 27.3 24.1 27.1 23.8 26.8C23.6 26.6 23.3 26.4 22.9 26.4C22.5 26.4 22.3 26.5 22 26.8C21.7 27.1 21.6 27.3 21.6 27.7C21.6 28.1 21.7 28.3 22 28.6C22.2 28.8 22.5 29 22.9 29ZM23 33C21.6 33 20.3 32.7 19.1 32.2C17.9 31.7 16.8 31 15.9 30.1C15 29.2 14.3 28.1 13.8 26.9C13.3 25.7 13 24.4 13 23C13 21.6 13.3 20.3 13.8 19.1C14.3 17.9 15 16.8 15.9 15.9C16.8 15 17.9 14.3 19.1 13.8C20.3 13.3 21.6 13 23 13C24.4 13 25.7 13.3 26.9 13.8C28.1 14.3 29.2 15 30.1 15.9C31 16.8 31.7 17.9 32.2 19.1C32.7 20.3 33 21.6 33 23C33 24.4 32.7 25.7 32.2 26.9C31.7 28.1 31 29.2 30.1 30.1C29.2 31 28.1 31.7 26.9 32.2C25.7 32.7 24.4 33 23 33ZM23 31C25.2 31 27.1 30.2 28.7 28.7C30.3 27.2 31 25.3 31 23C31 20.7 30.2 18.9 28.7 17.3C27.2 15.7 25.3 15 23 15C20.7 15 18.9 15.8 17.3 17.3C15.7 18.8 15 20.7 15 23C15 25.3 15.8 27.1 17.3 28.7C18.8 30.3 20.7 31 23 31ZM23.1 18.7C23.5 18.7 23.9 18.8 24.2 19.1C24.5 19.4 24.7 19.7 24.7 20.1C24.7 20.5 24.6 20.8 24.4 21.1C24.2 21.4 23.9 21.7 23.6 21.9C23.2 22.2 22.9 22.6 22.6 23C22.3 23.4 22.2 23.9 22.2 24.4C22.2 24.9 22.2 24.8 22.5 25C22.8 25.2 22.9 25.2 23.1 25.2C23.3 25.2 23.6 25.2 23.7 24.9C23.8 24.6 24 24.5 24 24.3C24 23.9 24.2 23.6 24.5 23.4C24.8 23.2 25 22.9 25.3 22.6C25.7 22.2 26 21.8 26.3 21.4C26.6 21 26.7 20.5 26.7 19.9C26.7 19 26.4 18.4 25.7 17.8C25 17.2 24.2 17 23.3 17C22.4 17 22.1 17.1 21.5 17.4C20.9 17.7 20.5 18.1 20.2 18.6C20.1 18.8 20 19 20.1 19.2C20.2 19.4 20.3 19.6 20.4 19.7C20.6 19.8 20.9 19.9 21.1 19.8C21.3 19.7 21.6 19.6 21.7 19.4C21.9 19.1 22.1 19 22.4 18.8C22.7 18.6 23 18.6 23.3 18.6L23.1 18.7Z" fill="white"/> </svg>`,
     // SVG de vehiculo que me pasaste
     vehiculo: `<svg width="46" height="52" viewBox="0 0 46 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M1 23C1 10.85 10.85 1 23 1C35.15 1 45 10.85 45 23C45 35.15 35.15 51 23 51C10.85 51 1 35.15 1 23Z" fill="white" stroke="#D9D9D9" stroke-width="2" stroke-miterlimit="10"/>
-<path d="M23 39C32.3888 39 40 31.3888 40 22C40 12.6112 32.3888 5 23 5C13.6112 5 6 12.6112 6 22C6 31.3888 13.6112 39 23 39Z" fill="#F17431"/>
-<mask id="mask0_396_2638" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="11" y="10" width="24" height="24">
-<rect x="11" y="10" width="24" height="24" fill="#D9D9D9"/>
-</mask>
-<g mask="url(#mask0_396_2638)">
-<path d="M18 31C17.1667 31 16.4583 30.7083 15.875 30.125C15.2917 29.5417 15 28.8333 15 28H14C13.45 28 12.9792 27.8042 12.5875 27.4125C12.1958 27.0208 12 26.55 12 26V23C12 22.45 12.1958 21.9792 12.5875 21.5875C12.9792 21.1958 13.45 21 14 21H23V17C23 16.45 23.1958 15.9792 23.5875 15.5875C23.9792 15.1958 24.45 15 25 15H27V14C27 13.7167 27.0958 13.4792 27.2875 13.2875C27.4792 13.0958 27.7167 13 28 13H29C29.2833 13 29.5208 13.0958 29.7125 13.2875C29.9042 13.4792 30 13.7167 30 14V15H30.55C30.9833 15 31.375 15.125 31.725 15.375C32.075 15.625 32.3167 15.9583 32.45 16.375L33.9 20.675C33.9333 20.775 33.9583 20.8792 33.975 20.9875C33.9917 21.0958 34 21.2083 34 21.325V26C34 26.55 33.8042 27.0208 33.4125 27.4125C33.0208 27.8042 32.55 28 32 28H31C31 28.8333 30.7083 29.5417 30.125 30.125C29.5417 30.7083 28.8333 31 28 31C27.1667 31 26.4583 30.7083 25.875 30.125C25.2917 29.5417 25 28.8333 25 28H21C21 28.8333 20.7083 29.5417 20.125 30.125C19.5417 30.7083 18.8333 31 18 31ZM18 29C18.2833 29 18.5208 28.9042 18.7125 28.7125C18.9042 28.5208 19 28.2833 19 28C19 27.7167 18.9042 27.4792 18.7125 27.2875C18.5208 27.0958 18.2833 27 18 27C17.7167 27 17.4792 27.0958 17.2875 27.2875C17.0958 27.4792 17 27.7167 17 28C17 28.2833 17.0958 28.5208 17.2875 28.7125C17.4792 28.9042 17.7167 29 18 29ZM28 29C28.2833 29 28.5208 28.9042 28.7125 28.7125C28.9042 28.5208 29 28.2833 29 28C29 27.7167 28.9042 27.4792 28.7125 27.2875C28.5208 27.0958 28.2833 27 28 27C27.7167 27 27.4792 27.0958 27.2875 27.2875C27.0958 27.4792 27 27.7167 27 28C27 28.2833 27.0958 28.5208 27.2875 28.7125C27.4792 28.9042 27.7167 29 28 29ZM14 23V26H15.775C16.0583 25.6833 16.3917 25.4375 16.775 25.2625C17.1583 25.0875 17.5667 25 18 25C18.4333 25 18.8417 25.0875 19.225 25.2625C19.6083 25.4375 19.9417 25.6833 20.225 26H23V23H14ZM25 26H25.775C26.0583 25.6833 26.3917 25.4375 26.775 25.2625C27.1583 25.0875 27.5667 25 28 25C28.4333 25 28.8417 25.0875 29.225 25.2625C29.6083 25.4375 29.9417 25.6833 30.225 26H32V23H25V26ZM25 21H31.9L30.55 17H25V21ZM13 18.5V16.5H12.75C12.5333 16.5 12.3542 16.4292 12.2125 16.2875C12.0708 16.1458 12 15.9667 12 15.75C12 15.5333 12.0708 15.3542 12.2125 15.2125C12.3542 15.0708 12.5333 15 12.75 15H21.25C21.4667 15 21.6458 15.0708 21.7875 15.2125C21.9292 15.3542 22 15.5333 22 15.75C22 15.9667 21.9292 16.1458 21.7875 16.2875C21.6458 16.4292 21.4667 16.5 21.25 16.5H21V18.5H21.25C21.4667 18.5 21.6458 18.5708 21.7875 18.7125C21.9292 18.8542 22 19.0333 22 19.25C22 19.4667 21.9292 19.6458 21.7875 19.7875C21.6458 19.9292 21.4667 20 21.25 20H12.75C12.5333 20 12.3542 19.9292 12.2125 19.7875C12.0708 19.6458 12 19.4667 12 19.25C12 19.0333 12.0708 18.8542 12.2125 18.7125C12.3542 18.5708 12.5333 18.5 12.75 18.5H13ZM14.5 18.5H16.25V16.5H14.5V18.5ZM17.75 18.5H19.5V16.5H17.75V18.5Z" fill="white"/>
-</g>
-</svg>
-`
-  };
+    <path d="M1 23C1 10.85 10.85 1 23 1C35.15 1 45 10.85 45 23C45 35.15 35.15 51 23 51C10.85 51 1 35.15 1 23Z" fill="white" stroke="#D9D9D9" stroke-width="2" stroke-miterlimit="10"/>
+    <path d="M23 39C32.3888 39 40 31.3888 40 22C40 12.6112 32.3888 5 23 5C13.6112 5 6 12.6112 6 22C6 31.3888 13.6112 39 23 39Z" fill="#F17431"/>
+    <mask id="mask0_396_2638" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="11" y="10" width="24" height="24">
+    <rect x="11" y="10" width="24" height="24" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#mask0_396_2638)">
+    <path d="M18 31C17.1667 31 16.4583 30.7083 15.875 30.125C15.2917 29.5417 15 28.8333 15 28H14C13.45 28 12.9792 27.8042 12.5875 27.4125C12.1958 27.0208 12 26.55 12 26V23C12 22.45 12.1958 21.9792 12.5875 21.5875C12.9792 21.1958 13.45 21 14 21H23V17C23 16.45 23.1958 15.9792 23.5875 15.5875C23.9792 15.1958 24.45 15 25 15H27V14C27 13.7167 27.0958 13.4792 27.2875 13.2875C27.4792 13.0958 27.7167 13 28 13H29C29.2833 13 29.5208 13.0958 29.7125 13.2875C29.9042 13.4792 30 13.7167 30 14V15H30.55C30.9833 15 31.375 15.125 31.725 15.375C32.075 15.625 32.3167 15.9583 32.45 16.375L33.9 20.675C33.9333 20.775 33.9583 20.8792 33.975 20.9875C33.9917 21.0958 34 21.2083 34 21.325V26C34 26.55 33.8042 27.0208 33.4125 27.4125C33.0208 27.8042 32.55 28 32 28H31C31 28.8333 30.7083 29.5417 30.125 30.125C29.5417 30.7083 28.8333 31 28 31C27.1667 31 26.4583 30.7083 25.875 30.125C25.2917 29.5417 25 28.8333 25 28H21C21 28.8333 20.7083 29.5417 20.125 30.125C19.5417 30.7083 18.8333 31 18 31ZM18 29C18.2833 29 18.5208 28.9042 18.7125 28.7125C18.9042 28.5208 19 28.2833 19 28C19 27.7167 18.9042 27.4792 18.7125 27.2875C18.5208 27.0958 18.2833 27 18 27C17.7167 27 17.4792 27.0958 17.2875 27.2875C17.0958 27.4792 17 27.7167 17 28C17 28.2833 17.0958 28.5208 17.2875 28.7125C17.4792 28.9042 17.7167 29 18 29ZM28 29C28.2833 29 28.5208 28.9042 28.7125 28.7125C28.9042 28.5208 29 28.2833 29 28C29 27.7167 28.9042 27.4792 28.7125 27.2875C28.5208 27.0958 28.2833 27 28 27C27.7167 27 27.4792 27.0958 27.2875 27.2875C27.0958 27.4792 27 27.7167 27 28C27 28.2833 27.0958 28.5208 27.2875 28.7125C27.4792 28.9042 27.7167 29 28 29ZM14 23V26H15.775C16.0583 25.6833 16.3917 25.4375 16.775 25.2625C17.1583 25.0875 17.5667 25 18 25C18.4333 25 18.8417 25.0875 19.225 25.2625C19.6083 25.4375 19.9417 25.6833 20.225 26H23V23H14ZM25 26H25.775C26.0583 25.6833 26.3917 25.4375 26.775 25.2625C27.1583 25.0875 27.5667 25 28 25C28.4333 25 28.8417 25.0875 29.225 25.2625C29.6083 25.4375 29.9417 25.6833 30.225 26H32V23H25V26ZM25 21H31.9L30.55 17H25V21ZM13 18.5V16.5H12.75C12.5333 16.5 12.3542 16.4292 12.2125 16.2875C12.0708 16.1458 12 15.9667 12 15.75C12 15.5333 12.0708 15.3542 12.2125 15.2125C12.3542 15.0708 12.5333 15 12.75 15H21.25C21.4667 15 21.6458 15.0708 21.7875 15.2125C21.9292 15.3542 22 15.5333 22 15.75C22 15.9667 21.9292 16.1458 21.7875 16.2875C21.6458 16.4292 21.4667 16.5 21.25 16.5H21V18.5H21.25C21.4667 18.5 21.6458 18.5708 21.7875 18.7125C21.9292 18.8542 22 19.0333 22 19.25C22 19.4667 21.9292 19.6458 21.7875 19.7875C21.6458 19.9292 21.4667 20 21.25 20H12.75C12.5333 20 12.3542 19.9292 12.2125 19.7875C12.0708 19.6458 12 19.4667 12 19.25C12 19.0333 12.0708 18.8542 12.2125 18.7125C12.3542 18.5708 12.5333 18.5 12.75 18.5H13ZM14.5 18.5H16.25V16.5H14.5V18.5ZM17.75 18.5H19.5V16.5H17.75V18.5Z" fill="white"/>
+    </g>
+    </svg>
+    `
+      };
 
   // -------------------------
   // Helper: crea el elemento marker (devuelve un HTMLElement)
@@ -106,6 +118,12 @@ const Map: React.FC<MapProps> = ({
       visualizePitch: false
     });
     map.current.addControl(nav, 'top-left');
+
+    // cerrar popup al clicar en cualquier parte del mapa
+    map.current.on('click', () => {
+      setActivePopup(null);
+    });
+
 
     // Detectar rotación para mostrar botón de reset
     map.current.on('rotate', () => {
@@ -178,6 +196,12 @@ const Map: React.FC<MapProps> = ({
   const centerOnEmergency = () => {
     if (map.current && emergencyLocation) {
       map.current.flyTo({ center: emergencyLocation, zoom: 16, duration: 1000 });
+      // abrir popup de emergencia (data viene de la prop `emergency` si está)
+      setActivePopup({
+        type: 'emergency',
+        coords: emergencyLocation,
+        data: emergency ?? {}
+      });
     }
   };
 
@@ -209,11 +233,52 @@ const Map: React.FC<MapProps> = ({
     // datos de ejemplo (tus coordenadas reales vendrán de props o API)
     const markerData = {
       hydrants: [
-        [-70.6490, -33.4360],
-        [-70.6520, -33.4380],
-        [-70.6480, -33.4390],
-        [-70.6510, -33.4350],
-      ],
+      {
+        coords: [-70.6490, -33.4360],
+        modelo: 'H-100',
+        diametro_grifo: '2"',
+        diametro_canieia: '100mm',
+        empresa: 'Empresa A',
+        direccion: 'Av. Ejemplo 123',
+        comuna: 'Santiago',
+        region: 'Región Metropolitana',
+        año: 2010
+      },
+      {
+        coords: [-70.6520, -33.4380],
+        modelo: 'H-200',
+        diametro_grifo: '2.5"',
+        diametro_canieia: '125mm',
+        empresa: 'Empresa B',
+        direccion: 'Calle Falsa 456',
+        comuna: 'Providencia',
+        region: 'Región Metropolitana',
+        año: 2015
+      },
+      {
+        coords: [-70.6480, -33.4390],
+        modelo: 'H-300',
+        diametro_grifo: '1.5"',
+        diametro_canieia: '80mm',
+        empresa: 'Empresa C',
+        direccion: 'Ruta 5',
+        comuna: 'Ñuñoa',
+        region: 'Región Metropolitana',
+        año: 2008
+      },
+      {
+        coords: [-70.6510, -33.4350],
+        modelo: 'H-400',
+        diametro_grifo: '3"',
+        diametro_canieia: '150mm',
+        empresa: 'Empresa D',
+        direccion: 'Paseo 789',
+        comuna: 'Las Condes',
+        region: 'Región Metropolitana',
+        año: 2020
+      }
+    ],
+
       hospitals: [
         [-70.6450, -33.4320],
         [-70.6550, -33.4420],
@@ -234,16 +299,29 @@ const Map: React.FC<MapProps> = ({
       ]
     };
 
-    // Hidrantes
-    if (showHydrants) {
-      markerData.hydrants.forEach(coords => {
-        const el = createSvgMarker('hydrant');
-        const marker = new mapboxgl.Marker({ element: el as any })
-          .setLngLat(coords as [number, number])
-          .addTo(map.current!);
-        markersRef.current.push(marker);
+// Hidrantes con popup
+if (showHydrants) {
+  markerData.hydrants.forEach((hydrant) => {
+    const el = createSvgMarker("hydrant");
+
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      setActivePopup({
+        type: "hydrant",
+        coords: hydrant.coords as [number, number],
+        data: hydrant,
       });
-    }
+    });
+
+    const marker = new mapboxgl.Marker({ element: el as any })
+      .setLngLat(hydrant.coords as [number, number])
+      .addTo(map.current!);
+
+    markersRef.current.push(marker);
+  });
+}
+
+
 
     // Hospitales
     if (showHospitals) {
@@ -301,22 +379,60 @@ const Map: React.FC<MapProps> = ({
     }
 
     // Emergencia (si aplica)
-    if (emergencyLocation) {
-      const el = createSvgMarker('emergency');
-      const emergencyMarker = new mapboxgl.Marker({ element: el as any })
-        .setLngLat(emergencyLocation)
-        .addTo(map.current);
-      markersRef.current.push(emergencyMarker);
-    }
+if (emergencyLocation) {
+  const el = createSvgMarker('emergency');
+  el.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    setActivePopup({
+      type: "emergency",
+      coords: emergencyLocation,
+      data: emergency ?? {},
+    });
+  });
+  const emergencyMarker = new mapboxgl.Marker({ element: el as any })
+    .setLngLat(emergencyLocation)
+    .addTo(map.current!);
+  markersRef.current.push(emergencyMarker);
+}
 
-    // Vehículos (ahora usan tu SVG 'vehiculo')
+
+
+    // Vehículos con nombre debajo
     vehicles.forEach((vehicle) => {
-      const el = createSvgMarker('vehiculo');
-      const vehicleMarker = new mapboxgl.Marker({ element: el as any })
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.alignItems = 'center';
+
+      // Icono SVG
+      const icon = createSvgMarker('vehiculo');
+      wrapper.appendChild(icon);
+
+      // Texto con nombre
+      if (vehicle.name) {
+        const label = document.createElement('span');
+        label.innerText = vehicle.name;
+        label.style.color = 'white';
+        label.style.fontSize = '12px';
+        label.style.fontWeight = 'bold';
+        label.style.marginTop = '2px';
+        // Borde negro alrededor del texto
+        label.style.textShadow = `
+          -1px -1px 0 #000,
+          1px -1px 0 #000,
+          -1px  1px 0 #000,
+          1px  1px 0 #000
+        `;
+        wrapper.appendChild(label);
+      }
+
+      const vehicleMarker = new mapboxgl.Marker({ element: wrapper })
         .setLngLat(vehicle.coordinates)
         .addTo(map.current!);
+
       markersRef.current.push(vehicleMarker);
     });
+
   };
 
   // re-ejecutar cuando cambian filtros/vehículos/ubicación emergencia
@@ -326,28 +442,51 @@ const Map: React.FC<MapProps> = ({
   }, [showHydrants, showHospitals, showPolice, showFireStations, showSIC, showMonuments, vehicles, emergencyLocation]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={mapContainer} className="absolute inset-0" />
-      {isMapRotated && (
-        <button
-          onClick={resetNorth}
-          className="absolute left-4 top-[120px] z-10 transition-transform hover:scale-105"
-          aria-label="Reset map orientation to north"
-        >
-          {/* Puedes reemplazar por tu SVG de brújula si quieres */}
-          <div style={{ width: 44, height: 44 }} dangerouslySetInnerHTML={{ __html:
-            `<svg width="58" height="58" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g filter="url(#filter0_d)">
-                <circle cx="29" cy="25" r="23.2941" fill="white" stroke="#D9D9D9" stroke-width="2.58824"/>
-                <path d="M41.6697 11.7766L33.1534 29.0668L24.9735 21.4056L41.6697 11.7766Z" fill="#F41D00"/>
-                <path d="M16.8994 38.2233L32.9321 29.3028L24.7522 21.6415L16.8994 38.2233Z" fill="#404040"/>
-              </g>
-              <defs><filter id="filter0_d" x="0" y="0" width="58" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dy="4"/><feGaussianBlur stdDeviation="2"/><feComposite in2="hardAlpha" operator="out"/><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/><feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/><feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/></filter></defs>
-            </svg>` }} />
-        </button>
-      )}
-    </div>
-  );
+  <div className="relative w-full h-full">
+    <div ref={mapContainer} className="absolute inset-0" />
+
+    {/* Custom popup (se renderiza sobre el mapa) */}
+    {activePopup && map.current && (
+      <CustomPopup
+        map={map.current}
+        lngLat={activePopup.coords}
+        title={
+          activePopup.type === "emergency"
+            ? "TERCERA ALARMA DE INCENDIO"
+            : activePopup.type === "hydrant"
+            ? "Hidrante"
+            : ""
+        }
+        subtitle={
+          activePopup.type === "emergency"
+            ? activePopup.data?.address || ""
+            : undefined
+        }
+        mainFields={
+          activePopup.type === "hydrant"
+            ? [
+                { label: "Modelo", value: activePopup.data?.modelo ?? "-" },
+                { label: "Diámetro grifo", value: activePopup.data?.diametro_grifo ?? "-" },
+                { label: "Diámetro cañería", value: activePopup.data?.diametro_canieia ?? "-" },
+              ]
+            : undefined
+        }
+        moreInfo={
+          activePopup.data
+            ? {
+                empresa: activePopup.data.empresa,
+                direccion: activePopup.data.direccion,
+                comuna: activePopup.data.comuna,
+                region: activePopup.data.region,
+                año: activePopup.data.año ?? activePopup.data.year,
+              }
+            : undefined
+        }
+        onClose={() => setActivePopup(null)}
+      />
+    )}
+  </div>
+);
 };
 
 export default Map;

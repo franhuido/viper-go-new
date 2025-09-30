@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface EmergencyKey {
   id: string;
@@ -128,35 +129,49 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
-      {pendingKey && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-[20px] p-8 w-[400px] max-w-[90vw] shadow-xl">
-            <h2 className="text-center text-gray-600 text-xl font-normal mb-8">
-              ¿Es correcto?
-            </h2>
-            <div className="text-center mb-8">
-              <span className="text-[#F17431] text-6xl font-normal">
-                {pendingKey}
-              </span>
-            </div>
-            <div className="flex gap-4">
-              <button
-                onClick={handleCancelKey}
-                className="flex-1 h-12 bg-white border-2 border-gray-300 rounded-full text-gray-700 text-lg font-normal hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmKey}
-                className="flex-1 h-12 bg-[#F17431] border-2 border-[#F17431] rounded-full text-white text-lg font-normal hover:bg-[#E6681F] transition-colors"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
+      {pendingKey &&
+  createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 2147483647, // super alto
+      }}
+    >
+      <div
+        style={{ zIndex: 2147483648, position: "relative" }}
+        className="bg-white rounded-[20px] p-8 w-[400px] max-w-[90vw] shadow-xl"
+      >
+        <h2 className="text-center text-gray-600 text-xl font-normal mb-8">
+          ¿Es correcto?
+        </h2>
+        <div className="text-center mb-8">
+          <span className="text-[#F17431] text-6xl font-normal">
+            {pendingKey}
+          </span>
         </div>
-      )}
+        <div className="flex gap-4">
+          <button
+            onClick={handleCancelKey}
+            className="flex-1 h-12 bg-white border-2 border-gray-300 rounded-full text-gray-700 text-lg font-normal hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirmKey}
+            className="flex-1 h-12 bg-[#F17431] border-2 border-[#F17431] rounded-full text-white text-lg font-normal hover:bg-[#E6681F] transition-colors"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )}
     </section>
   );
 };

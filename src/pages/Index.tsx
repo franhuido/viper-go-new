@@ -10,6 +10,7 @@ import VehiclePanel from '@/components/VehiclePanel';
 import KeysPanel from '@/components/KeysPanel';
 import FilterBar from '@/components/FilterBar';
 import EmergencyAlert from '@/components/EmergencyAlert';
+import mapboxgl from 'mapbox-gl';
 
 const Index: React.FC = () => {
   // State management
@@ -19,6 +20,7 @@ const Index: React.FC = () => {
   const [showTraffic, setShowTraffic] = useState(false);
   const [mapStyle, setMapStyle] = useState<'normal' | 'satellite'>('normal');
   const [isNavigating, setIsNavigating] = useState(false);
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   
   // Filter states
   const [showHydrants, setShowHydrants] = useState(false);
@@ -65,9 +67,30 @@ const Index: React.FC = () => {
   const handleLayersToggle = (style: 'normal' | 'satellite') => setMapStyle(style);
   
   const handleLocationCenter = () => {
-    // This will be called by the map component
-    console.log('Center on user location');
-  };
+  console.log('Centering map on user location');
+
+  if (!mapInstance || vehiclesWithCoords.length === 0) {
+    console.warn('Map instance or vehicles not available yet.');
+    return;
+  }
+
+  // 🔑 Escoger un vehículo como ubicación del usuario (ejemplo: el que está activo)
+  const userVehicle = vehiclesWithCoords.find(v => v.status === 'active') || vehiclesWithCoords[0];
+  if (!userVehicle || !userVehicle.coordinates) {
+    console.warn('User vehicle not found.');
+    return;
+  }
+
+  const userLocation = userVehicle.coordinates; // [lng, lat]
+
+  // Centrar el mapa
+  mapInstance.flyTo({
+    center: userLocation,
+    zoom: 15,
+    essential: true,
+  });
+};
+
   
   const handleNavigationToggle = () => {
     setShowNavigationSheet(!showNavigationSheet);
@@ -75,11 +98,25 @@ const Index: React.FC = () => {
   };
   
   const handleVehicleSelect = (vehicleName: string) => {
-    if (vehicleName !== currentVehicle) {
-      console.log('Center map on vehicle:', vehicleName);
-      // Here you would center the map on the selected vehicle
-    }
-  };
+  if (!mapInstance || vehiclesWithCoords.length === 0) {
+    console.warn("Map instance or vehicles not available yet.");
+    return;
+  }
+
+  const selectedVehicle = vehiclesWithCoords.find(v => v.name === vehicleName);
+  if (!selectedVehicle || !selectedVehicle.coordinates) {
+    console.warn("Vehicle not found:", vehicleName);
+    return;
+  }
+
+  // Centrar el mapa en ese vehículo
+  mapInstance.flyTo({
+    center: selectedVehicle.coordinates,
+    zoom: 15,
+    essential: true,
+  });
+};
+
   
   const handleKeyConfirm = (key: string) => {
     console.log('Emergency key confirmed:', key);
@@ -145,6 +182,7 @@ const Index: React.FC = () => {
         showMonuments={showMonuments}
         vehicles={vehiclesWithCoords}
         emergencyLocation={emergencyLocation}
+        onMapReady={(m) => setMapInstance(m)}
       />
 
       {/* Header with Logo */}
@@ -184,7 +222,11 @@ const Index: React.FC = () => {
       <FilterBar onFilterChange={handleFilterChange} />
 
       {/* Emergency Alert */}
-      <EmergencyAlert />
+      <EmergencyAlert
+        map={mapInstance}
+        emergencyLocation={emergencyLocation}
+        emergencyAddress={emergencyAddress}
+      />
 
       {/* Sidebar Menu */}
       <SidebarMenu
