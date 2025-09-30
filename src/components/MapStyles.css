@@ -84,3 +84,34 @@
 .mapboxgl-canvas {
   outline: none !important;
 }
+
+.user-location-btn {
+  bottom: 15px !important
+}
+
+/* Ajustes para pantallas con menos altura */
+
+/* 🔹 Entre 750px y 790px de alto */
+@media (max-height: 790px) {
+  /* Mueve el botón de ubicación a la izquierda del panel de vehículos */
+  .user-location-btn {
+    right: auto !important;
+    left: 16px !important;
+    top: 100px !important;
+  }
+}
+
+/* 🔹 Para pantallas muy bajas (<750px) */
+@media (max-height: 750px) {
+  /* Ajusta aún más el botón de ubicación */
+  .user-location-btn {
+    right: auto !important;
+    left: 16px !important;
+    top: 100px !important; /* lo empuja más arriba para no chocar con EmergencyAlert */
+  }
+
+  /* Dale respiro a la sección de EmergencyAlert */
+  .emergency-alert {
+    margin-bottom: 160px; /* empuja EmergencyAlert hacia arriba para no montarse en vehicle panel */
+  }
+}
