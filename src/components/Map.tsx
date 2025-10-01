@@ -380,18 +380,25 @@ if (showHydrants) {
     // Emergencia (si aplica)
 if (emergencyLocation) {
   const el = createSvgMarker('emergency');
-  el.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    setActivePopup({
-      type: "emergency",
-      coords: emergencyLocation,
-      data: emergency ?? {},
-    });
+
+// 🔥 aquí agregas el z-index
+(el as HTMLElement).style.zIndex = "1000";
+
+el.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  setActivePopup({
+    type: "emergency",
+    coords: emergencyLocation,
+    data: emergency ?? {},
   });
-  const emergencyMarker = new mapboxgl.Marker({ element: el as any })
-    .setLngLat(emergencyLocation)
-    .addTo(map.current!);
-  markersRef.current.push(emergencyMarker);
+});
+
+const emergencyMarker = new mapboxgl.Marker({ element: el })
+  .setLngLat(emergencyLocation)
+  .addTo(map.current!);
+
+markersRef.current.push(emergencyMarker);
+
 }
 
 

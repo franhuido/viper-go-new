@@ -60,8 +60,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ onFilterChange }) => {
               onClick={() => toggleFilter(filter.id)}
               className={`flex h-10 max-lg:h-8 justify-center items-center gap-[8px] shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] px-4 max-lg:px-3 py-2 max-lg:py-1.5 rounded-[20px] border-2 border-solid transition-colors whitespace-nowrap select-none ${
                 filter.active 
-                  ? 'bg-[#F17431] border-[#F17431] text-white' 
-                  : 'bg-white border-[#D9D9D9] text-neutral-700'
+                  ? 'bg-[#FFFFFF] border-[#F17431] text-[#F17431]' 
+                  : 'bg-white border-[#D9D9D9] text-[neutral-700]'
               }`}
               aria-label={`Toggle ${filter.name} filter`}
               aria-pressed={filter.active}

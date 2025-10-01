@@ -150,7 +150,7 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
           ¿Es correcto?
         </h2>
         <div className="text-center mb-8">
-          <span className="text-[#F17431] text-6xl font-normal">
+          <span className="text-[#F17431] text-5xl font-medium">
             {pendingKey}
           </span>
         </div>
