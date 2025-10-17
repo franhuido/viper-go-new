@@ -16,6 +16,10 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
   const [recommendedKey, setRecommendedKey] = useState<string>('6-9');
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
+  // estado para mostrar el modal "Ver todas"
+  const [showAllModal, setShowAllModal] = useState(false);
+
+  // Aqui se agregan las claves
   const emergencyKeys: EmergencyKey[] = [
     { id: '1', code: 'En el Cuartel', description: 'En el Cuartel' },
     { id: '2', code: 'Salida Material Mayor', description: 'Salida Material Mayor' },
@@ -26,6 +30,8 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
     { id: '7', code: '6-13', description: 'Emergency Code 6-13' },
     { id: '8', code: '6-14', description: 'Emergency Code 6-14' },
     { id: '9', code: '6-15', description: 'Emergency Code 6-15' },
+    { id: '10', code: '6-16', description: 'Emergency Code 6-16' },
+    { id: '11', code: '6-17', description: 'Emergency Code 6-17' },
   ];
 
   const handleKeySelect = (code: string) => {
@@ -98,36 +104,62 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
       </button>
 
       {/* Keys Grid */}
-      <div className="flex flex-col justify-center items-center gap-[5px] self-stretch shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] bg-white px-2.5 py-[9px] rounded-[10px] border-2 border-solid border-[#D9D9D9]">
-        <div className="grid w-[254px] max-lg:w-[220px] h-[216px] max-lg:h-[180px] gap-y-3 max-lg:gap-y-2 gap-x-[7px] max-lg:gap-x-[5px] grid-rows-[repeat(3,1fr)] grid-cols-[repeat(3,1fr)]">
-          {emergencyKeys
-            .filter((key) => key.code !== selectedKey) // ocultar la clave actual
-            .map((key) => (
-              <button
-                key={key.id}
-                onClick={() => handleKeySelect(key.code)}
-                className={`flex w-20 max-lg:w-16 h-16 max-lg:h-12 justify-center items-center bg-white p-[6px] rounded-[10px] border-2 border-solid transition-colors ${
-                  selectedKey === key.code
-                    ? 'border-[#F17431] bg-orange-50'
-                    : 'border-[#D9D9D9]'
+<div className="flex flex-col justify-center items-center gap-[5px] self-stretch shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] bg-white px-2.5 py-[9px] rounded-[10px] border-2 border-solid border-[#D9D9D9]">
+  <div className="grid w-[254px] max-lg:w-[220px] h-[216px] max-lg:h-[180px] gap-y-3 max-lg:gap-y-2 gap-x-[7px] max-lg:gap-x-[5px] grid-rows-[repeat(3,1fr)] grid-cols-[repeat(3,1fr)]">
+    {(() => {
+      const TOTAL_KEYS = emergencyKeys.length;
+      const SHOW_MORE_BUTTON = TOTAL_KEYS > 10; // tu condición: si hay más de 10, mostramos "Ver todas"
+      const GRID_SLOTS = 9; // 3x3
+      const numSlotsForKeys = SHOW_MORE_BUTTON ? GRID_SLOTS - 1 : GRID_SLOTS;
+
+      // mantenemos el orden original y excluimos la clave seleccionada del grid
+      const keysExcludingSelected = emergencyKeys.filter(k => k.code !== selectedKey);
+      const keysToDisplay = keysExcludingSelected.slice(0, numSlotsForKeys);
+
+      return (
+        <>
+          {keysToDisplay.map((key) => (
+            <button
+              key={key.id}
+              onClick={() => handleKeySelect(key.code)}
+              className={`flex w-20 max-lg:w-16 h-16 max-lg:h-12 justify-center items-center bg-white p-[6px] rounded-[10px] border-2 border-solid transition-colors ${
+                selectedKey === key.code
+                  ? 'border-[#F17431] bg-orange-50'
+                  : 'border-[#D9D9D9]'
+              }`}
+              aria-label={`Emergency key: ${key.code}`}
+            >
+              <span
+                className={`text-center font-bold text-neutral-700 leading-tight break-words ${
+                  key.code.length > 8
+                    ? 'text-[10px] max-lg:text-[8px]'
+                    : key.code.includes('-')
+                    ? 'text-lg max-lg:text-base'
+                    : 'text-xs max-lg:text-[10px]'
                 }`}
-                aria-label={`Emergency key: ${key.code}`}
               >
-                <span
-                  className={`text-center font-bold text-neutral-700 leading-tight break-words ${
-                    key.code.length > 8
-                      ? 'text-[10px] max-lg:text-[8px]'
-                      : key.code.includes('-')
-                      ? 'text-lg max-lg:text-base'
-                      : 'text-xs max-lg:text-[10px]'
-                  }`}
-                >
-                  {key.code}
-                </span>
-              </button>
-            ))}
-        </div>
-      </div>
+                {key.code}
+              </span>
+            </button>
+          ))}
+
+          {/* Botón "Ver todas" siempre en la última posición si corresponde */}
+          {SHOW_MORE_BUTTON && (
+            <button
+              key="ver-todas"
+              onClick={() => setShowAllModal(true)}
+              className="flex w-20 max-lg:w-16 h-16 max-lg:h-12 justify-center items-center bg-white p-[6px] rounded-[10px] border-2 border-solid border-[#D9D9D9] text-sm font-medium"
+              aria-label="Ver todas las claves"
+            >
+              Ver todas
+            </button>
+          )}
+        </>
+      );
+    })()}
+  </div>
+</div>
+
 
       {pendingKey &&
   createPortal(
@@ -172,6 +204,58 @@ const KeysPanel: React.FC<KeysPanelProps> = ({ onKeyConfirm }) => {
     </div>,
     document.body
   )}
+  {showAllModal &&
+  createPortal(
+    <div
+      onClick={() => setShowAllModal(false)}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,0.5)',
+        zIndex: 2147483647,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ zIndex: 2147483648, position: 'relative' }}
+        className="bg-white rounded-[10px] p-6 w-[480px] max-w-[95vw] shadow-xl"
+      >
+        <h2 className="text-center text-gray-700 text-lg font-semibold mb-4">Todas las claves</h2>
+
+        <div className="max-h-[60vh] overflow-auto mb-4">
+          <div className="grid grid-cols-3 gap-3">
+            {emergencyKeys.map((key) => (
+              <button
+                key={key.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPendingKey(key.code); // abre el modal de confirmación como en el grid
+                  setShowAllModal(false);
+                }}
+                className="p-2 rounded-[8px] border border-[#D9D9D9] bg-white text-center text-sm font-medium"
+              >
+                {key.code}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowAllModal(false)}
+            className="px-4 py-2 rounded-full border border-gray-300 bg-white"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )}
+
     </section>
   );
 };

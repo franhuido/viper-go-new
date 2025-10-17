@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Vehicle {
   id: string;
@@ -17,6 +18,26 @@ const VehiclePanel: React.FC<VehiclePanelProps> = ({
   currentVehicle,
   onVehicleSelect
 }) => {
+  const [showAllModal, setShowAllModal] = useState(false);
+  const otherVehicles = vehicles.filter(v => v.name !== currentVehicle);
+  const SHOW_MORE_BUTTON = otherVehicles.length > 6;
+  const [showMoreButton, setShowMoreButton] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+useEffect(() => {
+  if (!containerRef.current) return;
+
+  const children = Array.from(containerRef.current.children) as HTMLElement[];
+  const tops = new Set(children.map((el) => el.offsetTop));
+
+  if (tops.size > 2) {
+    setShowMoreButton(true);
+  } else {
+    setShowMoreButton(false);
+  }
+}, [vehicles]);
+
+
   return (
     <section className="flex w-[276px] max-lg:w-[240px] flex-col items-start gap-2.5 h-[158px] max-lg:h-[140px] right-4 max-lg:right-3 max-lg:bottom-16 z-10">
       <div className="flex items-center gap-4 self-stretch">
@@ -53,7 +74,7 @@ const VehiclePanel: React.FC<VehiclePanelProps> = ({
       </div>
 
       {/* Lista de vehículos */}
-      <div className="flex h-28 flex-col items-center gap-2.5 self-stretch shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] bg-white px-2.5 py-2 rounded-[20px] border-2 border-solid border-[#D9D9D9] max-sm:h-20 max-sm:px-2 max-sm:py-2.5">
+      <div ref={containerRef} className="flex h-28 flex-col items-center gap-2.5 self-stretch shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] bg-white px-2.5 py-2 rounded-[20px] border-2 border-solid border-[#D9D9D9] max-sm:h-20 max-sm:px-2 max-sm:py-2.5">
         <div className="flex items-center content-start gap-[5px] self-stretch flex-wrap px-[5px]">
           {vehicles
             .filter((vehicle) => vehicle.name !== currentVehicle) // 🚫 oculta vehículo actual
@@ -68,10 +89,22 @@ const VehiclePanel: React.FC<VehiclePanelProps> = ({
                 </span>
               </button>
             ))}
+            {showMoreButton && (
+              <button
+                onClick={() => setShowAllModal(true)}
+                className="mt-2 px-4 py-2 rounded-[10px] border border-[#D9D9D9] bg-white hover:bg-[#F17431] hover:text-white"
+              >
+                Ver todos
+              </button>
+            )}
+
+
         </div>
       </div>
+      
     </section>
   );
+
 };
 
 export default VehiclePanel;
